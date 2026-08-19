@@ -536,3 +536,5 @@ def get_summarizer(
     if provider == "groq" or (not s.is_gemini_configured and s.is_groq_configured):
         return GroqSummarizer(settings=s, client=client)
     return GeminiSummarizer(settings=s, client=client)
+
+# Prompt tuning revision 1
