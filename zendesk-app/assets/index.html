@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zendesk Ticket Summarizer — AI Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Zendesk Apps Framework (ZAF) v2 SDK -->
+  <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
+</head>
+<body>
+  <div class="app-container" id="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo-icon">✨</div>
+        <div>
+          <h1 class="brand-title">AI Summarizer</h1>
+          <p class="brand-subtitle" id="brand-subtitle">Gemini &amp; Groq Intelligence</p>
+        </div>
+      </div>
+      <div class="status-badge" id="status-badge" title="Service Connection Status">
+        <span class="status-dot online" id="status-dot"></span>
+        <span class="status-text" id="status-text">Ready</span>
+      </div>
+    </header>
+
+    <!-- Error / Alert Banner (Hidden by default) -->
+    <div class="error-banner" id="error-banner" style="display: none;">
+      <div class="error-header">
+        <span class="error-icon">⚠️</span>
+        <strong id="error-title">Summarization Error</strong>
+      </div>
+      <p class="error-message" id="error-message">Something went wrong.</p>
+      <button type="button" class="error-close-btn" id="error-close-btn" title="Dismiss">&times;</button>
+    </div>
+
+    <!-- Active Ticket Context Card -->
+    <section class="ticket-card" id="ticket-card">
+      <div class="ticket-meta-row">
+        <span class="ticket-id-tag" id="ticket-id-tag">#Loading</span>
+        <span class="ticket-status-tag" id="ticket-status-tag">open</span>
+      </div>
+      <h2 class="ticket-subject" id="ticket-subject">Loading ticket subject...</h2>
+      <div class="ticket-details-row">
+        <span class="detail-item" id="ticket-requester">👤 Customer</span>
+        <span class="detail-item" id="ticket-priority">⚡ Normal</span>
+      </div>
+    </section>
+
+    <!-- Controls / Action Section -->
+    <section class="controls-card">
+      <label class="control-label" for="style-btn-group">Summary Format</label>
+      <div class="style-selector-group" id="style-btn-group">
+        <button type="button" class="style-btn active" data-style="standard" id="btn-style-standard">Standard</button>
+        <button type="button" class="style-btn" data-style="brief" id="btn-style-brief">Brief</button>
+        <button type="button" class="style-btn" data-style="action_only" id="btn-style-action">Actions</button>
+        <button type="button" class="style-btn" data-style="detailed" id="btn-style-detailed">Detailed</button>
+      </div>
+
+      <div class="action-row">
+        <button id="btn-summarize" class="btn btn-primary" type="button">
+          <span class="btn-spinner" id="summarize-spinner"></span>
+          <span class="btn-icon" id="summarize-icon">⚡</span>
+          <span class="btn-text" id="btn-summarize-text">Summarize Ticket</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Loading Skeleton (Hidden by default) -->
+    <div class="skeleton-container" id="skeleton-container">
+      <div class="skeleton-pulse skeleton-line skeleton-title"></div>
+      <div class="skeleton-pulse skeleton-line"></div>
+      <div class="skeleton-pulse skeleton-line"></div>
+      <div class="skeleton-pulse skeleton-line skeleton-short"></div>
+    </div>
+
+    <!-- Automated Pre-draft Notification Banner (Hidden by default) -->
+    <div class="pending-draft-banner" id="pending-draft-banner" style="display: none;">
+      <div class="pending-header">
+        <span class="pending-icon">⚡</span>
+        <div>
+          <strong class="pending-title">Pre-Drafted Summary (Pending Review)</strong>
+          <p class="pending-subtitle">Generated on ticket status solve. Review and post below.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Output Section (Hidden initially) -->
+    <section class="summary-section" id="summary-section" style="display: none;">
+      <!-- Tab Navigation -->
+      <div class="tabs-header">
+        <button type="button" class="tab-btn active" id="tab-btn-markdown" data-tab="markdown">
+
+          ✏️ Edit &amp; Post Note
+        </button>
+        <button type="button" class="tab-btn" id="tab-btn-formatted" data-tab="formatted">
+          📋 Visual Breakdown
+        </button>
+      </div>
+
+      <!-- Tab 1: Editable Markdown Note (Default / Primary) -->
+      <div class="tab-content active" id="tab-markdown">
+        <div class="editor-header">
+          <span class="editor-label">Draft Internal Note (Editable):</span>
+          <span class="char-count" id="char-count">0 chars</span>
+        </div>
+        <div class="editor-container">
+          <textarea id="markdown-editor" class="markdown-textarea" placeholder="AI Note Markdown... (Edit before posting)"></textarea>
+        </div>
+      </div>
+
+      <!-- Tab 2: Visual Breakdown View -->
+      <div class="tab-content" id="tab-formatted">
+        <div class="summary-box">
+          <div class="summary-row">
+            <div class="summary-metric">
+              <span class="metric-label">Sentiment</span>
+              <span class="sentiment-pill" id="sentiment-pill">⚪ Neutral</span>
+            </div>
+            <div class="summary-metric">
+              <span class="metric-label">Status</span>
+              <span class="status-pill" id="current-status-pill">Open</span>
+            </div>
+          </div>
+
+          <div class="summary-block">
+            <div class="summary-label">Executive Summary</div>
+            <p class="summary-text" id="summary-exec"></p>
+          </div>
+
+          <div class="summary-block">
+            <div class="summary-label">Customer Issue</div>
+            <p class="summary-text" id="summary-issue"></p>
+          </div>
+
+          <div class="summary-block" id="block-actions">
+            <div class="summary-label">Actions Taken / Troubleshooting</div>
+            <ul class="timeline-list" id="timeline-list"></ul>
+          </div>
+
+          <div class="summary-block" id="block-commitments">
+            <div class="summary-label">Commitments / Promised Follow-ups</div>
+            <ul class="commitments-list" id="commitments-list"></ul>
+          </div>
+
+          <div class="summary-block" id="block-items">
+            <div class="summary-label">Next Steps / Action Items</div>
+            <ul class="checklist" id="action-checklist"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="summary-actions">
+        <button type="button" class="btn btn-secondary" id="btn-copy" title="Copy markdown note to clipboard">
+          <span class="btn-icon">📋</span> Copy
+        </button>
+        <button type="button" class="btn btn-outline" id="btn-insert-composer" title="Inject into Zendesk Ticket Internal Note box">
+          <span class="btn-icon">📝</span> Insert Note
+        </button>
+        <button type="button" class="btn btn-accent" id="btn-post-direct" title="Post directly to Zendesk API as a private internal note">
+          <span class="btn-spinner" id="post-spinner" style="display: none;"></span>
+          <span class="btn-icon" id="post-icon">🚀</span>
+          <span id="post-text">Post as Internal Note</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Past Summaries History Accordion -->
+    <section class="history-section" id="history-section">
+      <button type="button" class="history-toggle-btn" id="history-toggle-btn">
+        <span class="history-title">
+          <span class="history-icon">📜</span> Past AI Summaries (<span id="history-count">0</span>)
+        </span>
+        <span class="accordion-arrow" id="history-arrow">▾</span>
+      </button>
+      <div class="history-content" id="history-content" style="display: none;">
+        <div class="history-list" id="history-list">
+          <p class="history-empty">No past summaries recorded for this ticket.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Toast Notification Banner -->
+    <div class="toast" id="toast">
+      <span class="toast-icon" id="toast-icon">ℹ️</span>
+      <span class="toast-message" id="toast-message">Message</span>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
