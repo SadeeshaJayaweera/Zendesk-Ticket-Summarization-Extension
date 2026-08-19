@@ -434,3 +434,5 @@ class ZendeskClient:
 # Resilience refinement 16
 
 # Resilience refinement 17
+
+# Resilience refinement 18
