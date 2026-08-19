@@ -5,3 +5,8 @@ __pycache__/
 .pytest_cache/
 dist/
 .DS_Store
+
+# Python build
+build/
+*.egg-info/
+*.whl
