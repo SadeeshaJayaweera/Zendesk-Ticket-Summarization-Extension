@@ -538,3 +538,5 @@ def get_summarizer(
     return GeminiSummarizer(settings=s, client=client)
 
 # Prompt tuning revision 1
+
+# Prompt tuning revision 2
