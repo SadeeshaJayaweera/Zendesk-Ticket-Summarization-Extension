@@ -1,0 +1,15 @@
+{
+  "app": {
+    "name": "Zendesk Ticket Summarizer",
+    "short_description": "AI-powered ticket summaries directly in your sidebar.",
+    "long_description": "Summarize customer tickets, conversations, and generate internal notes using Google Gemini and Groq AI.",
+    "installation_instructions": "Install the app and configure the backend service URL (e.g. https://your-backend.com or http://localhost:8000 for development)."
+  },
+  "parameters": {
+    "backendUrl": {
+      "label": "Backend Service URL",
+      "helpText": "Base URL of the FastAPI backend service (default: http://localhost:8000)"
+    }
+  }
+}
+
