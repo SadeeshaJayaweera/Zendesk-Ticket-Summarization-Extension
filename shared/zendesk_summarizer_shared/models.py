@@ -311,3 +311,5 @@ class WebhookTicketPayload(BaseModel):
 # Schema revision 12: strict type checking
 
 # Schema revision 13: strict type checking
+
+# Schema revision 14: strict type checking
