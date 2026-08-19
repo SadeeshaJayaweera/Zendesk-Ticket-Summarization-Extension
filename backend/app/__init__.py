@@ -1,1 +1,1 @@
-"""Backend Application Package."""
+"""FastAPI Backend Application Package."""

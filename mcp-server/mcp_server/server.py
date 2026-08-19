@@ -198,35 +198,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Tool schema refinement 1
-
-# Tool schema refinement 2
-
-# Tool schema refinement 3
-
-# Tool schema refinement 4
-
-# Tool schema refinement 5
-
-# Tool schema refinement 6
-
-# Tool schema refinement 7
-
-# Tool schema refinement 8
-
-# Tool schema refinement 9
-
-# Tool schema refinement 10
-
-# Tool schema refinement 11
-
-# Tool schema refinement 12
-
-# Tool schema refinement 13
-
-# Tool schema refinement 14
-
-# Tool schema refinement 15
-
-# Tool schema refinement 16

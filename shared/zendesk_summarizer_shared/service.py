@@ -286,23 +286,3 @@ class TicketSummarizerService:
 
 
 
-
-# Production service refinement 1
-
-# Production service refinement 2
-
-# Production service refinement 3
-
-# Production service refinement 4
-
-# Production service refinement 5
-
-# Production service refinement 6
-
-# Production service refinement 7
-
-# Production service refinement 8
-
-# Production service refinement 9
-
-# Production service refinement 10

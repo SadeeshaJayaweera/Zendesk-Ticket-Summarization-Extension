@@ -1,1 +1,1 @@
-"""MCP Server Package."""
+"""MCP Server Package for Zendesk Ticket Summarizer."""

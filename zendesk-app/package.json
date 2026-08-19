@@ -1,5 +1,19 @@
 {
   "name": "zendesk-ticket-summarizer-app",
   "version": "1.0.0",
-  "private": true
+  "description": "Zendesk ticket-sidebar app for AI summarization using ZAF v2",
+  "private": true,
+  "scripts": {
+    "validate": "node -e \"const m=require('./manifest.json'); console.log('Manifest valid:', m.name, 'v' + m.version);\"",
+    "package": "python3 package_app.py"
+  },
+  "keywords": [
+    "zendesk",
+    "zaf",
+    "ticket-sidebar",
+    "ai",
+    "summarizer"
+  ],
+  "author": "Zendesk Summarizer Team",
+  "license": "MIT"
 }
