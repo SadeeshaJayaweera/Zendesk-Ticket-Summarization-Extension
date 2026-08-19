@@ -16,3 +16,6 @@ build/
 *.sqlite3
 *.db-wal
 *.db-shm
+
+# ZAF package artifacts
+*.zip
