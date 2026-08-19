@@ -578,3 +578,5 @@ def get_summarizer(
 # Prompt tuning revision 20
 
 # Prompt tuning revision 21
+
+# Prompt tuning revision 22
