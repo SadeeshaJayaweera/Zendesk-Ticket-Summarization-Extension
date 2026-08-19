@@ -1,0 +1,28 @@
+{
+  "name": "Zendesk Ticket Summarizer",
+  "author": {
+    "name": "Zendesk Summarizer Team",
+    "email": "support@example.com"
+  },
+  "defaultLocale": "en",
+  "private": true,
+  "location": {
+    "support": {
+      "ticket_sidebar": {
+        "url": "assets/index.html",
+        "flexible": true
+      }
+    }
+  },
+  "version": "1.0.0",
+  "frameworkVersion": "2.0",
+  "parameters": [
+    {
+      "name": "backendUrl",
+      "type": "text",
+      "required": false,
+      "secure": false,
+      "default": "http://localhost:8000"
+    }
+  ]
+}
