@@ -285,3 +285,5 @@ class WebhookTicketPayload(BaseModel):
     ticket: Optional[Dict[str, Any]] = None
 
 
+
+# Schema revision 1: strict type checking
