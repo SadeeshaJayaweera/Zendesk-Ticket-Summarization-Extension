@@ -400,3 +400,5 @@ class ZendeskClient:
         return [Ticket.model_validate(t) for t in tickets_data]
 
 
+
+# Resilience refinement 1
