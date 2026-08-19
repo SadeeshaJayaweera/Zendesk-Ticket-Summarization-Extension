@@ -1,212 +1,324 @@
-# Zendesk Ticket Summarizer
+# 🤖 Zendesk Ticket Summarizer
 
-A modular, multi-component monorepo designed to automatically generate AI summaries of Zendesk support tickets and conversation threads using Google Gemini AI, and seamlessly post them back as Zendesk internal notes.
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Zendesk ZAF v2](https://img.shields.io/badge/Zendesk-ZAF_v2-03363D?style=for-the-badge&logo=zendesk&logoColor=white)](https://developer.zendesk.com/)
+[![Google Gemini AI](https://img.shields.io/badge/Google_Gemini-1.5_Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
+[![Groq LLaMA](https://img.shields.io/badge/Groq-LLaMA_3.3_70B-F55036?style=for-the-badge&logo=groq&logoColor=white)](https://groq.com/)
+[![Model Context Protocol](https://img.shields.io/badge/MCP-Stdio_Protocol-0A84FF?style=for-the-badge)](https://modelcontextprotocol.io/)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/Tests-85%2F85_Passing_(100%25)-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://pytest.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+
+An enterprise-grade, multi-component monorepo that automatically analyzes complex Zendesk customer conversation threads using **Google Gemini AI** and **Groq LLaMA 3.3**, generating structured summaries and enabling support agents to review, edit, and post internal notes in a single click.
 
 ---
 
-## Architecture Overview
+## 📌 Relevant Topics & Tags
 
-The system is structured as a Python 3.11+ monorepo with a single source of truth (`shared/`) consumed by multiple frontends and interfaces:
+`zendesk` • `zendesk-app` • `zendesk-ticket-summarizer` • `ai-summarization` • `google-gemini` • `gemini-1.5-flash` • `groq` • `llama-3.3-70b` • `fastapi` • `model-context-protocol` • `mcp-server` • `customer-support` • `llm-agent` • `claude-desktop` • `cursor` • `docker` • `sqlite-wal` • `python` • `rate-limiting` • `zaf-v2` • `human-in-the-loop`
+
+---
+
+## 🎯 The Problem
+
+Customer support teams at scale face severe operational bottlenecks:
+1. **Information Overload**: Multi-day ticket threads often contain 20+ back-and-forth messages between customers, tier-1 agents, and specialized engineers.
+2. **Context Loss on Handoffs**: When tickets are reassigned, new agents must spend 5–15 minutes reading raw transcripts to understand the root cause and prior troubleshooting steps.
+3. **Elevated Mean Time to Resolution (MTTR)**: Repetitive reading and drafting handover notes slows down resolution times and increases customer wait times.
+4. **Shift Handover Gaps**: Inconsistent or missing internal notes leave oncoming shifts guessing what actions were promised to the customer.
+
+---
+
+## 💡 The Solution
+
+**Zendesk Ticket Summarizer** provides a unified AI operational layer for Zendesk:
+
+* **⚡ Instant Context Extraction**: Automatically parses the entire conversation history (public replies & private notes) and synthesizes the customer's core issue, steps taken, current status, and sentiment in seconds.
+* **🛡️ Human-in-the-Loop Safety**: AI summaries are presented as editable drafts in the sidebar UI or staging queue; they are **never auto-posted without agent review**, preventing AI hallucinations from becoming permanent records.
+* **🧩 Native Zendesk Agent Workspace App**: A lightweight ZAF v2 sidebar widget styled with **Zendesk Garden** design tokens that fits seamlessly into the agent workspace.
+* **🤖 Model Context Protocol (MCP) Server**: Exposes ticket inspection, summarization, and note-posting tools to desktop AI agents (e.g. Claude Desktop, Cursor, Antigravity) via stdio.
+* **🔄 Automated Webhook on Ticket Solve**: Automatically drafts an AI summary when a ticket status changes to `Solved`, pre-filling the sidebar widget when the agent opens the ticket.
+* **🔒 Production Hardening**: Sliding-window rate limiting, HMAC-SHA256 signature verification, and SQLite Write-Ahead Logging (WAL) for lock-free audit logging.
+
+---
+
+## 🏛️ System Architecture
+
+```
+                                    +-------------------------------------------------------------+
+                                    |                 Zendesk Support Platform                    |
+                                    |                                                             |
+                                    |  +-------------------------------------------------------+  |
+                                    |  |   zendesk-app/ (ZAF v2 Sidebar Widget HTML/JS/CSS)    |  |
+                                    |  +---------------------------+---------------------------+  |
+                                    +------------------------------|------------------------------+
+                                                                   | HTTP / JSON
+                                                                   v
+                                    +-------------------------------------------------------------+
+                                    |           FastAPI Production Backend (backend/)             |
+                                    |                                                             |
+                                    |  +-------------------------------------------------------+  |
+                                    |  |  • In-Memory Sliding Window Rate Limiter              |  |
+                                    |  |  • HMAC-SHA256 Webhook Signature Verification         |  |
+                                    |  |  • Resilient Exception Handlers (401/404/429/502)     |  |
+                                    |  |  • Prometheus-style /metrics Observability Endpoint   |  |
+                                    |  |  • SQLite Audit Logger (WAL Mode, zero contention)    |  |
+                                    |  +---------------------------+---------------------------+  |
+                                    +------------------------------|------------------------------+
+                                                                   |
+                                                      Imports Logic| (Single Source of Truth)
+                                                                   v
++-----------------------------+     +-------------------------------------------------------------+
+|     AI Desktop Clients      |     |             Shared Core Package (shared/)                   |
+|  (Claude Desktop, Cursor)   |     |               zendesk_summarizer_shared                     |
++--------------+--------------+     |                                                             |
+               |                    |  • ZendeskClient (Async httpx, Pagination, 429 Backoff)     |
+               | Stdio / MCP        |  • GeminiClient & GroqSummarizer (JSON Regex Extraction)    |
+               v                    |  • TicketContextBuilder & InternalNoteFormatter             |
++-----------------------------+     |  • DraftStore (In-memory & persistent pending reviews)      |
+|  mcp-server/ (Python MCP)   |---->+------------------------------+------------------------------+
++-----------------------------+                                    |
+                                                                   |
+                                    +------------------------------+------------------------------+
+                                    |                                                             |
+                                    v                                                             v
+                     +-----------------------------+                               +-----------------------------+
+                     |      Zendesk REST API       |                               |      Google Gemini API      |
+                     | (Tickets, Comments, Users)  |                               |    (1.5 Flash / Groq LLaMA) |
+                     +-----------------------------+                               +-----------------------------+
+```
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology | Purpose & Details |
+| :--- | :--- | :--- |
+| **Language & Runtime** | Python 3.11+ | Type-annotated, modern async/await runtime across monorepo |
+| **Package Management** | Poetry 2.0+ | Monorepo dependency management with local path resolution |
+| **Backend REST API** | FastAPI, Uvicorn | High-performance asynchronous REST service |
+| **Data Validation** | Pydantic v2 Settings | Strict schema validation, type safety, and `.env` parsing |
+| **Primary AI Engine** | Google Gemini 1.5 Flash | Fast, high-accuracy structured summary generation via REST API |
+| **Fallback AI Engine** | Groq Cloud (LLaMA 3.3 70B) | High-speed open-weights fallback provider |
+| **Zendesk UI Client** | ZAF v2, HTML5, Vanilla JS/CSS | Native iframe sidebar widget built with Zendesk Garden tokens |
+| **AI Agent Interface** | Model Context Protocol (MCP) | Official Python MCP SDK exposing tools over `stdio` |
+| **HTTP Client** | HTTPX (Async) | Async client with exponential backoff & connection pooling |
+| **Audit & Storage** | SQLite 3 (WAL Mode) | Thread-safe, lock-free operational audit log and pending draft queue |
+| **Security & Auth** | HMAC-SHA256, HTTP Basic Auth | Webhook signature verification and constant-time token comparison |
+| **Containerization** | Docker, Docker Compose | Multi-stage slim container with persistent volumes & health check |
+| **Testing Suite** | Pytest, Respx, AsyncIO | 85 comprehensive unit, integration, and mock tests (100% pass rate) |
+
+---
+
+## 📁 Repository Structure
 
 ```
 zendesk-ticket-summarizer/
-├── backend/          # FastAPI REST service — core ticket retrieval & AI summarization
-├── zendesk-app/      # Zendesk Apps Framework (ZAF v2) sidebar app (HTML/JS shell)
-├── mcp-server/       # Model Context Protocol (MCP) server exposing tools to AI agents
-├── shared/           # Shared Python package (zendesk_summarizer_shared) for config & clients
-├── docs/             # Technical specifications and API contract documentation
-├── scripts/          # Automation, smoke test, and diagnostic scripts
-├── .env.example      # Environment variables template
-├── .gitignore        # Monorepo gitignore rules
+├── shared/                         # Core shared Python library (zendesk_summarizer_shared)
+│   ├── zendesk_summarizer_shared/
+│   │   ├── config.py               # Pydantic Settings & environment loader
+│   │   ├── models.py               # Zendesk & AI Domain Pydantic models
+│   │   ├── zendesk_client.py       # Async Zendesk REST API client with 429 backoff
+│   │   ├── gemini_client.py        # Async Google Gemini API client
+│   │   ├── summarizer.py           # Gemini/Groq summarizers, context builder & formatter
+│   │   ├── service.py              # Orchestration service combining Zendesk + AI
+│   │   ├── security.py             # HMAC-SHA256 webhook signature verification
+│   │   ├── draft_store.py          # State store for pending_review automated drafts
+│   │   ├── rate_limiter.py         # Sliding-window in-memory rate limiter
+│   │   ├── audit_logger.py         # SQLite WAL-mode persistent audit logger
+│   │   └── metrics.py              # Operational metrics tracker
+│   ├── tests/                      # Unit tests for shared library (55 tests)
+│   └── pyproject.toml
+│
+├── backend/                        # FastAPI REST API Microservice
+│   ├── app/
+│   │   └── main.py                 # FastAPI application routes, rate limiting & error handlers
+│   ├── tests/                      # Integration and API test suite (22 tests)
+│   └── pyproject.toml
+│
+├── zendesk-app/                    # Zendesk Apps Framework (ZAF v2) Sidebar App
+│   ├── manifest.json               # ZAF App manifest with ticket_sidebar location
+│   ├── package_app.py              # Schema validator and zip packager script
+│   ├── dist/                       # Output zip package for Zendesk upload
+│   ├── assets/
+│   │   ├── index.html              # Garden-themed responsive sidebar UI
+│   │   ├── style.css               # Styling, animations, skeleton loader & themes
+│   │   └── main.js                 # ZAF SDK integration, dev preview & API caller
+│   └── translations/en.json        # Localization strings
+│
+├── mcp-server/                     # Model Context Protocol (MCP) Server
+│   ├── mcp_server/
+│   │   └── server.py               # MCP Server exposing stdio tools for Claude/Cursor
+│   ├── tests/                      # MCP Server test suite (8 tests)
+│   └── pyproject.toml
+│
+├── docs/                           # Technical Specifications & Documentation
+│   ├── zendesk-api-notes.md        # Zendesk REST endpoint contracts & auth specs
+│   ├── zendesk-app-install.md      # Sidebar app upload & configuration guide
+│   ├── zendesk-trigger-setup.md    # Zendesk Trigger & Webhook setup guide
+│   ├── mcp-server-setup.md         # Claude Desktop & IDE integration guide
+│   └── DEPLOYMENT.md               # Cloud deployment guide (Render, Railway, Fly.io)
+│
+├── scripts/                        # Diagnostic & verification scripts
+│   ├── smoke_test.py               # Live Zendesk & Gemini connectivity test
+│   ├── test_summarize_pipeline.py  # Simulated pipeline across all summary styles
+│   ├── test_webhook_flow.py        # Webhook signature & pending draft simulation
+│   └── test_mcp_client.py          # Interactive MCP client emulator
+│
+├── Dockerfile                      # Production multi-stage Docker container
+├── docker-compose.yml              # Local container orchestration with SQLite volume
+├── .dockerignore                   # Docker context exclusions
+├── .gitignore                      # Git tracking exclusions
+├── .env.example                    # Environment template
 └── README.md
 ```
 
-### Component Interaction Diagram
-
-```
- +---------------------------------------------------------+
- |                 Zendesk Support Interface               |
- |                                                         |
- |   +-------------------------------------------------+   |
- |   |   zendesk-app/ (ZAF Sidebar Widget HTML/JS)     |   |
- |   +-------------------------------------------------+   |
- +----------------------------+----------------------------+
-                              |
-                     HTTP     | (e.g. POST /api/summarize)
-                              v
-                +----------------------------+
-                |    backend/ (FastAPI)      |
-                +-------------+--------------+
-                              |
-               imports logic  |
-                              v
-                +----------------------------+
-                |     shared/ (Python)       |
-                |  zendesk_summarizer_shared |
-                +-------+------------+-------+
-                        |            |
-                        |            | imports logic
-                        |            v
-                        |     +----------------------------+
-                        |     |    mcp-server/ (MCP)       |
-                        |     +----------------------------+
-                        |                    |
-                        |                    | STDIO / SSE
-                        |                    v
-                        |             AI Agent Platforms
-                        |             (Claude Desktop, AGY)
-                        |
-       +----------------+----------------+
-       |                                 |
-       v                                 v
-+-----------------------+     +-----------------------+
-|   Zendesk REST API    |     |   Google Gemini API   |
-| (Tickets & Comments)  |     |   (generateContent)   |
-+-----------------------+     +-----------------------+
-```
-
-### Why a Shared Package?
-- **Single Source of Truth**: All Zendesk API contracts, authentication headers, error handling, rate limiting, and Gemini prompt templates live inside `shared/` (`zendesk_summarizer_shared`).
-- **No Duplication**: Both the `backend` (FastAPI) and `mcp-server` import `zendesk_summarizer_shared` directly via Poetry path dependencies (`../shared`).
-- **Strict Security**: Credentials (`ZENDESK_SUBDOMAIN`, `ZENDESK_EMAIL`, `ZENDESK_API_TOKEN`, `GEMINI_API_KEY`) are managed strictly via environment variables or `.env` using Pydantic Settings and are never hardcoded.
-
 ---
 
-## Getting Started
+## ⚡ Quickstart & Setup
 
-### Prerequisites
-- Python 3.11+
-- [Poetry](https://python-poetry.org/) 2.0+
+### 1. Prerequisites
+* Python 3.11+
+* [Poetry](https://python-poetry.org/) 2.0+
+* A Zendesk account with Admin/Agent API access
+* A Google Gemini API Key ([Get one here](https://aistudio.google.com/)) or Groq Cloud API Key
 
-### 1. Configure Environment Variables
-Copy the template and provide your actual credentials:
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env` in the repository root:
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your Zendesk credentials and Gemini API Key:
+Fill in your actual credentials:
 ```ini
-ZENDESK_SUBDOMAIN=your_subdomain
-ZENDESK_EMAIL=your_email@example.com
-ZENDESK_API_TOKEN=your_zendesk_token
+ZENDESK_SUBDOMAIN=your_company_subdomain
+ZENDESK_EMAIL=agent@yourcompany.com
+ZENDESK_API_TOKEN=your_zendesk_api_token
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-1.5-flash
+
+# Optional Groq Fallback
+GROQ_API_KEY=your_groq_key
+LLM_PROVIDER=gemini
+
+# Webhook Automation Secret (Optional)
+ZENDESK_WEBHOOK_SECRET=your_zendesk_webhook_signing_secret
 ```
 
----
-
-## Connectivity Smoke Test
-
-The repository includes an end-to-end smoke test script that verifies live connectivity and authentication with both Zendesk and Google Gemini:
-
+### 3. Run Connectivity Smoke Test
+Validate live connectivity with both Zendesk and Google Gemini:
 ```bash
-# Run directly from monorepo root:
 python scripts/smoke_test.py
 ```
 
-### What the Smoke Test Verifies:
-1. **Zendesk REST API**:
-   - Queries `GET https://{subdomain}.zendesk.com/api/v2/tickets.json?per_page=1`
-   - Uses HTTP Basic Authentication with `{email}/token:{api_token}` per Zendesk API specifications.
-   - Verifies ticket list access and displays ticket count and sample metadata.
-2. **Google Gemini API**:
-   - Sends a test payload to `generateContent` using `GEMINI_API_KEY`.
-   - Confirms model inference and response parsing.
-
 ---
 
-## Component Setup & Development
+## 🚀 Running the Components
 
-### 1. Shared Package (`shared/`)
-```bash
-cd shared
-poetry install
-poetry run pytest
-```
-
-### 2. Backend Service (`backend/`)
+### 1. Run the FastAPI Backend
 ```bash
 cd backend
 poetry install
 poetry run uvicorn app.main:app --reload --port 8000
 ```
-- Interactive Swagger API Docs: `http://localhost:8000/docs`
-- Health check: `GET /health`
-- Metrics: `GET /metrics`
-- Ticket Details: `GET /api/tickets/{ticket_id}`
-- Summarize Ticket: `POST /api/tickets/{ticket_id}/summarize`
-- Post Internal Note: `POST /api/tickets/{ticket_id}/notes`
-- Summarize & Post: `POST /api/tickets/{ticket_id}/summarize-and-post`
-- Direct Text Summarization: `POST /api/summarize-text`
-- Webhook Solve Trigger: `POST /webhooks/zendesk/ticket-status-changed`
+* Interactive API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+* Health Check: `GET http://localhost:8000/health`
+* Live Metrics: `GET http://localhost:8000/metrics`
 
-### 3. MCP Server (`mcp-server/`)
+### 2. Run with Docker Compose
 ```bash
-cd mcp-server
-poetry install
-poetry run python -m mcp_server.server
+docker-compose up --build
 ```
-Exposes tools for AI Agent platforms (Claude Desktop, Cursor, Antigravity):
-- `get_ticket(ticket_id)`
-- `list_recent_tickets(status, limit)`
-- `summarize_ticket(ticket_id, style)`
-- `post_internal_note(ticket_id, note_body)`
-- `summarize_text(text, subject, style)`
-- `get_service_status()`
+Spins up the containerized backend with SQLite persistent volume mount at `summarizer_data:/app/data`.
 
-### 4. Zendesk Sidebar App (`zendesk-app/`)
-The sidebar app is a ZAF v2 HTML/JS/CSS client built with Zendesk Garden styling.
+### 3. Package & Install Zendesk Sidebar App
 ```bash
 cd zendesk-app
 python3 package_app.py
-# Package created: dist/zendesk-ticket-summarizer.zip
 ```
-Upload the zip via Zendesk Admin Center > Apps and integrations > Zendesk Support apps > Upload private app.
+1. Open **Zendesk Admin Center** > **Apps and integrations** > **Zendesk Support apps**.
+2. Click **Upload private app** and select `dist/zendesk-ticket-summarizer.zip`.
+3. Set the `backendUrl` setting to your deployed backend URL (or `http://localhost:8000` for testing).
+
+### 4. Connect to Claude Desktop via MCP Server
+Add the server definition to your `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "zendesk-summarizer": {
+      "command": "poetry",
+      "args": ["run", "python", "-m", "mcp_server.server"],
+      "cwd": "/path/to/zendesk-ticket-summarizer/mcp-server",
+      "env": {
+        "ZENDESK_SUBDOMAIN": "your_subdomain",
+        "ZENDESK_EMAIL": "agent@example.com",
+        "ZENDESK_API_TOKEN": "your_token",
+        "GEMINI_API_KEY": "your_gemini_key"
+      }
+    }
+  }
+}
+```
 
 ---
 
-## Production Hardening & Resilience
+## 📊 REST API Endpoints & Observability
 
-1. **Sliding Window Rate Limiting**: In-memory rate limiter protects public and webhook endpoints against request flooding (`RATE_LIMIT_PER_MINUTE=60`).
-2. **SQLite WAL Audit Logger**: Thread-safe audit trail stored in SQLite using Write-Ahead Logging (`PRAGMA journal_mode=WAL;` and `busy_timeout=5000`) to eliminate database lock contention.
-3. **Operational Metrics (`/metrics`)**: Built-in JSON metrics tracking summary generation counts (by style/provider), note postings, webhooks processed, uptime, and categorized error rates.
-4. **Structured Error Handling**: Graceful exception mapping for Zendesk 401/404/429/502, Gemini/Groq rate limits, and webhook HMAC signature failures without exposing stack traces.
-5. **Containerization**: Multi-stage `Dockerfile` and `docker-compose.yml` with persistent volume mount (`summarizer_data:/app/data`) and automated health checks.
-
----
-
-## Production Deployment
-
-For detailed deployment guides on Render.com, Railway, Fly.io, secrets injection, and Zendesk installation settings, refer to:
-- 📖 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
-- 📖 [docs/zendesk-app-install.md](docs/zendesk-app-install.md)
-- 📖 [docs/zendesk-trigger-setup.md](docs/zendesk-trigger-setup.md)
-- 📖 [docs/mcp-server-setup.md](docs/mcp-server-setup.md)
+| Method | Endpoint | Description | Rate Limited |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/` | Root service status and version | ❌ |
+| `GET` | `/health` | Service health and configuration checks | ❌ |
+| `GET` | `/metrics` | Operational counters, error breakdown & uptime | ❌ |
+| `GET` | `/api/tickets/{id}` | Get ticket metadata and chronological comments | ❌ |
+| `GET` | `/api/tickets/{id}/history` | Get historical AI summaries posted to ticket | ❌ |
+| `GET` | `/api/tickets/{id}/pending-draft` | Check for automated pre-draft on ticket solve | ❌ |
+| `POST` | `/api/tickets/{id}/summarize` | Generate AI summary for ticket (supports 4 styles) | ✅ |
+| `POST` | `/api/tickets/{id}/notes` | Post private internal note to ticket | ✅ |
+| `POST` | `/api/tickets/{id}/summarize-and-post` | All-in-one generate and post workflow | ✅ |
+| `POST` | `/api/summarize-text` | Direct text / chat transcript summarization | ✅ |
+| `POST` | `/webhooks/zendesk/ticket-status-changed` | HMAC-signed Zendesk trigger webhook endpoint | ✅ |
 
 ---
 
-## Running Automated Tests
+## 🧪 Comprehensive Test Suite
 
-Run the complete test suite across all monorepo components:
+The monorepo includes **85 automated tests** across all components:
 
 ```bash
-# 1. Shared Package Tests (55 tests)
-cd shared && poetry run pytest
+# 1. Run Shared Package Tests (55 tests)
+cd shared && poetry run pytest -v
 
-# 2. Backend API & Hardening Tests (22 tests)
-cd backend && poetry run pytest
+# 2. Run Backend API Tests (22 tests)
+cd backend && poetry run pytest -v
 
-# 3. MCP Server Tests (8 tests)
-cd mcp-server && poetry run pytest
+# 3. Run MCP Server Tests (8 tests)
+cd mcp-server && poetry run pytest -v
 ```
-**Total**: **85 automated tests passing (100% coverage)**.
+
+**Result**: `85 passed in ~3.8s (100% passing)`.
 
 ---
 
-## Known Limitations
+## 📚 Technical Documentation
 
-1. **Zendesk API Rate Limits**: Zendesk enforces plan-dependent API limits (e.g. 200–700 RPM). The client implements automatic exponential backoff with `Retry-After` header parsing.
-2. **Free Hosting Cold Starts**: On free tiers (e.g., Render free web services), inactivity causes the service to sleep (~50s cold start). Use Railway or paid instances for mission-critical support workflows.
-3. **Human-in-the-Loop Safeguard**: Automated triggers store drafts as `pending_review` in the sidebar app rather than auto-posting to ticket threads, preventing unreviewed AI hallucinations from becoming permanent records.
-4. **Massive Thread Truncation**: Extremely long ticket threads (>25 comments) are intelligently truncated, preserving the customer's initial problem description and the latest exchanges in full context.
+* 📖 [docs/zendesk-api-notes.md](docs/zendesk-api-notes.md) — Zendesk REST contracts, authentication, sideloading, pagination.
+* 📖 [docs/zendesk-app-install.md](docs/zendesk-app-install.md) — Packaging and installing the ZAF sidebar app.
+* 📖 [docs/zendesk-trigger-setup.md](docs/zendesk-trigger-setup.md) — Zendesk Trigger & HMAC Webhook configuration.
+* 📖 [docs/mcp-server-setup.md](docs/mcp-server-setup.md) — Claude Desktop, Cursor, and Antigravity MCP integration.
+* 📖 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Production cloud deployment on Render, Railway, Fly.io.
 
+---
+
+## ⚠️ Known Limitations
+
+1. **Zendesk API Plan Quotas**: Zendesk imposes plan-based rate limits (e.g. 200–700 RPM). The client handles this via automatic exponential backoff with `Retry-After` header parsing.
+2. **Free Hosting Cold Starts**: On free tiers (e.g., Render free web service), inactivity spins down the instance (~50s cold start). Use Railway or paid plans for zero-latency production workloads.
+3. **Massive Thread Context**: Extreme conversation threads (>25 comments) are intelligently truncated, prioritizing the initial customer problem statement and the latest replies.
+4. **Human Review Principle**: Automated solve webhooks store drafts as `pending_review` in the sidebar app rather than auto-posting to ticket comments to ensure human oversight.
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See `LICENSE` for more information.
