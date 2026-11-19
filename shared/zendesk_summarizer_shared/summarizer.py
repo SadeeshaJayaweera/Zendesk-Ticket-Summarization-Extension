@@ -4,25 +4,36 @@ Provides:
 1. TicketContextBuilder: formats ticket metadata and comment threads into structured LLM prompt context,
    with speaker labeling and smart recency-preserving truncation for long threads.
 2. InternalNoteFormatter: converts structured AI summaries into scannable Markdown internal notes.
-3. BaseSummarizer / GeminiSummarizer / GroqSummarizer: LLM-backed summarization implementations
-   with defensive JSON parsing and robust error handling.
-4. get_summarizer: factory function selectable via config (LLM_PROVIDER).
+3. BaseSummarizer / GeminiSummarizer / GroqSummarizer / MultiProviderSummarizer:
+   LLM-backed summarization implementations with defensive JSON parsing, prompt injection defense,
+   multi-provider failover, and support for all 10 summary profile types.
+4. get_summarizer: factory function selectable via config.
 """
 
 import abc
 import json
+import logging
 import re
 from typing import Any, Dict, List, Optional
 import httpx
 
+from zendesk_summarizer_shared.ai.context_engine import IntelligentContextEngine
+from zendesk_summarizer_shared.ai.orchestrator import AIOrchestrator
 from zendesk_summarizer_shared.config import Settings, get_settings
 from zendesk_summarizer_shared.models import (
     Comment,
     SummaryStructured,
+    SummaryStyle,
     Ticket,
     TicketSummary,
     User,
 )
+from zendesk_summarizer_shared.prompts import (
+    SUMMARY_PROFILE_INSTRUCTIONS,
+    build_summarization_prompt,
+)
+
+logger = logging.getLogger("zendesk_summarizer.summarizer")
 
 
 # --- Custom Exceptions ---
@@ -53,17 +64,7 @@ class LLMAPIError(SummarizationError):
 # --- Ticket Context Builder ---
 
 class TicketContextBuilder:
-    """Formats Ticket and comment thread into structured prompt context with smart truncation.
-
-    Truncation Strategy:
-    - If thread is within limits (default <= 25 comments and <= 12,000 chars), all comments
-      are included in chronological order with full text.
-    - If thread exceeds limits:
-      1. Comment #1 (initial customer inquiry / issue description) is preserved in FULL.
-      2. Older middle comments are compressed into 1-line timestamped summaries with key snippets.
-      3. The most recent N comments (default: last 8 comments) are preserved in FULL with
-         complete message bodies, ensuring the latest resolution steps are never lost.
-    """
+    """Formats Ticket and comment thread into structured prompt context with smart truncation."""
 
     def __init__(
         self,
@@ -147,7 +148,6 @@ class TicketContextBuilder:
                 else "Unassigned"
             )
             parts.append(f"Assignee: {assignee_name}")
-
             if ticket.tags:
                 parts.append(f"Tags: {', '.join(ticket.tags)}")
             if ticket.created_at:
@@ -175,14 +175,12 @@ class TicketContextBuilder:
                     parts.append(f"[{idx}] {speaker} at {time_str}:\n{body}\n")
             else:
                 # Long thread: apply recency-preserving window truncation
-                # Comment 1: Opening customer issue (Always in FULL)
                 first_comment = comments[0]
                 speaker = self._resolve_speaker_label(first_comment, ticket, known_users, requester, assignee)
                 time_str = first_comment.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if first_comment.created_at else "Unknown Time"
                 body = (first_comment.plain_body or first_comment.body or "").strip()
                 parts.append(f"[1] {speaker} at {time_str} [OPENING INQUIRY]:\n{body}\n")
 
-                # Middle comments: compress into 1-line timestamped snippets
                 recent_start_idx = num_comments - self.keep_recent_comments
                 middle_comments = comments[1:recent_start_idx]
                 parts.append(f"--- [Middle {len(middle_comments)} comments summarized for context brevity] ---")
@@ -194,7 +192,6 @@ class TicketContextBuilder:
                     parts.append(f"  • [#{idx}] {speaker} ({time_str}): {snippet}")
                 parts.append("--- [Most recent exchanges in FULL below] ---\n")
 
-                # Recent comments: in FULL
                 for idx, comment in enumerate(comments[recent_start_idx:], start=recent_start_idx + 1):
                     speaker = self._resolve_speaker_label(comment, ticket, known_users, requester, assignee)
                     time_str = comment.created_at.strftime("%Y-%m-%d %H:%M:%S UTC") if comment.created_at else "Unknown Time"
@@ -220,12 +217,8 @@ class InternalNoteFormatter:
 
 def build_ticket_summary_prompt(context: str, summary_style: str = "standard") -> str:
     """Build standardized prompt instructing LLM to output structured JSON."""
-    style_guidance = {
-        "brief": "Keep customer_issue concise, limit actions_taken and action_items to top 2 bullet points.",
-        "action_only": "Focus heavily on current_status, commitments made, and pending action_items.",
-        "detailed": "Provide an in-depth chronological breakdown of all troubleshooting steps, logs, and findings.",
-        "standard": "Provide a balanced, thorough summary covering issue, actions taken, current status, commitments, and next steps.",
-    }.get(summary_style.lower(), "Provide a balanced, thorough summary.")
+    style_key = summary_style.lower().strip()
+    style_guidance = SUMMARY_PROFILE_INSTRUCTIONS.get(style_key, SUMMARY_PROFILE_INSTRUCTIONS["standard"])
 
     json_schema_example = json.dumps(
         {
@@ -291,7 +284,6 @@ def extract_structured_json(text: str) -> Dict[str, Any]:
     elif cleaned.startswith("{") and cleaned.endswith("}"):
         pass
     else:
-        # 2. Extract substring between outermost braces
         first_brace = cleaned.find("{")
         last_brace = cleaned.rfind("}")
         if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
@@ -304,7 +296,7 @@ def extract_structured_json(text: str) -> Dict[str, Any]:
     except json.JSONDecodeError:
         pass
 
-    # 3. Fallback recovery: extract key sections if JSON decode fails
+    # Fallback recovery
     return {
         "executive_summary": text.strip()[:250] if text else "Summary generation completed.",
         "customer_issue": "Customer reported an inquiry (parsed from text).",
@@ -317,11 +309,10 @@ def extract_structured_json(text: str) -> Dict[str, Any]:
     }
 
 
-def parse_llm_response_to_summary(raw_text: str) -> SummaryStructured:
+def parse_llm_response_to_summary(raw_text: str, summary_style: str = "standard") -> SummaryStructured:
     """Parse raw LLM output into validated SummaryStructured model."""
     data = extract_structured_json(raw_text)
 
-    # Normalize fields defensively
     customer_issue = data.get("customer_issue") or data.get("issue") or "Inquiry reported by customer."
     actions = data.get("actions_taken") or data.get("actions") or []
     if isinstance(actions, str):
@@ -349,12 +340,21 @@ def parse_llm_response_to_summary(raw_text: str) -> SummaryStructured:
     return SummaryStructured(
         executive_summary=exec_summary,
         customer_issue=customer_issue,
+        customer_expectations=data.get("customer_expectations"),
+        business_impact=data.get("business_impact"),
+        technical_symptoms=data.get("technical_symptoms", []),
+        attempted_troubleshooting=data.get("attempted_troubleshooting", []),
+        root_cause=data.get("root_cause"),
         actions_taken=actions,
         current_status=status,
         commitments=commitments,
+        deadlines=data.get("deadlines", []),
+        responsible_party=data.get("responsible_party"),
         action_items=action_items,
         sentiment=sentiment,
+        urgency_level=data.get("urgency_level", "normal"),
         notes=notes,
+        summary_profile=summary_style,
     )
 
 
@@ -450,14 +450,11 @@ class GeminiSummarizer(BaseSummarizer):
             raise SummarizationError("Gemini response candidate contains no text parts.")
 
         raw_text = parts[0]["text"]
-        return parse_llm_response_to_summary(raw_text)
+        return parse_llm_response_to_summary(raw_text, summary_style=summary_style)
 
 
 class GroqSummarizer(BaseSummarizer):
-    """Alternative summarizer using Groq OpenAI-compatible Chat Completions REST API.
-
-    Enables seamless fallback if Gemini quota limits are hit.
-    """
+    """Alternative summarizer using Groq OpenAI-compatible Chat Completions REST API."""
 
     def _get_api_key(self) -> str:
         key = self.settings.groq_api_key.get_secret_value().strip()
@@ -518,20 +515,53 @@ class GroqSummarizer(BaseSummarizer):
         if not raw_text:
             raise SummarizationError("Groq response message content was empty.")
 
-        return parse_llm_response_to_summary(raw_text)
+        return parse_llm_response_to_summary(raw_text, summary_style=summary_style)
+
+
+class MultiProviderSummarizer(BaseSummarizer):
+    """Production Multi-Provider Summarizer backed by AIOrchestrator."""
+
+    def __init__(
+        self,
+        settings: Optional[Settings] = None,
+        orchestrator: Optional[AIOrchestrator] = None,
+    ):
+        super().__init__(settings=settings)
+        self.orchestrator = orchestrator or AIOrchestrator(settings=self.settings)
+        self.context_engine = IntelligentContextEngine()
+
+    async def summarize_context(self, context: str, summary_style: str = "standard") -> SummaryStructured:
+        prompt = build_ticket_summary_prompt(context, summary_style=summary_style)
+        try:
+            result = await self.orchestrator.generate_structured_with_fallback(
+                prompt=prompt,
+                schema_cls=SummaryStructured,
+                primary_provider=self.settings.llm_provider,
+            )
+            res_summary = result.output
+            if isinstance(res_summary, SummaryStructured):
+                res_summary.summary_profile = summary_style
+                return res_summary
+            return parse_llm_response_to_summary(json.dumps(res_summary), summary_style=summary_style)
+        except Exception as exc:
+            logger.warning("Multi-provider orchestrator fallback error: %s", exc)
+            # Safe fall back to legacy provider if orchestrator encountered issues
+            fallback = get_summarizer(settings=self.settings)
+            return await fallback.summarize_context(context, summary_style=summary_style)
 
 
 def get_summarizer(
     settings: Optional[Settings] = None,
     client: Optional[httpx.AsyncClient] = None,
 ) -> BaseSummarizer:
-    """Factory function: instantiates the configured summarizer (Gemini or Groq).
-
-    Selection is controlled by `settings.llm_provider` ('gemini' or 'groq').
-    If provider is 'groq' (or if Gemini key is unset and Groq key is set), GroqSummarizer is used.
-    """
+    """Factory function: instantiates the configured summarizer (Gemini, Groq, or MultiProvider)."""
     s = settings or get_settings()
     provider = s.llm_provider.strip().lower()
+
+    if client is not None:
+        if provider == "groq" or (not s.is_gemini_configured and s.is_groq_configured):
+            return GroqSummarizer(settings=s, client=client)
+        return GeminiSummarizer(settings=s, client=client)
 
     if provider == "groq" or (not s.is_gemini_configured and s.is_groq_configured):
         return GroqSummarizer(settings=s, client=client)

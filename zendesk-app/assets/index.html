@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zendesk Ticket Summarizer — AI Assistant</title>
+  <title>Zendesk Support Intelligence Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -18,8 +18,8 @@
       <div class="brand">
         <div class="logo-icon">✨</div>
         <div>
-          <h1 class="brand-title">AI Summarizer</h1>
-          <p class="brand-subtitle" id="brand-subtitle">Gemini &amp; Groq Intelligence</p>
+          <h1 class="brand-title">Support Intelligence</h1>
+          <p class="brand-subtitle" id="brand-subtitle">AI Operations Layer</p>
         </div>
       </div>
       <div class="status-badge" id="status-badge" title="Service Connection Status">
@@ -32,7 +32,7 @@
     <div class="error-banner" id="error-banner" style="display: none;">
       <div class="error-header">
         <span class="error-icon">⚠️</span>
-        <strong id="error-title">Summarization Error</strong>
+        <strong id="error-title">Error</strong>
       </div>
       <p class="error-message" id="error-message">Something went wrong.</p>
       <button type="button" class="error-close-btn" id="error-close-btn" title="Dismiss">&times;</button>
@@ -51,139 +51,345 @@
       </div>
     </section>
 
-    <!-- Controls / Action Section -->
-    <section class="controls-card">
-      <label class="control-label" for="style-btn-group">Summary Format</label>
-      <div class="style-selector-group" id="style-btn-group">
-        <button type="button" class="style-btn active" data-style="standard" id="btn-style-standard">Standard</button>
-        <button type="button" class="style-btn" data-style="brief" id="btn-style-brief">Brief</button>
-        <button type="button" class="style-btn" data-style="action_only" id="btn-style-action">Actions</button>
-        <button type="button" class="style-btn" data-style="detailed" id="btn-style-detailed">Detailed</button>
-      </div>
-
-      <div class="action-row">
-        <button id="btn-summarize" class="btn btn-primary" type="button">
-          <span class="btn-spinner" id="summarize-spinner"></span>
-          <span class="btn-icon" id="summarize-icon">⚡</span>
-          <span class="btn-text" id="btn-summarize-text">Summarize Ticket</span>
-        </button>
-      </div>
-    </section>
+    <!-- Top Navigation Tabs -->
+    <nav class="nav-tabs-bar" id="nav-tabs-bar">
+      <button type="button" class="nav-tab active" data-view="view-summary">📝 Summary</button>
+      <button type="button" class="nav-tab" data-view="view-troubleshoot">🔍 Troubleshoot</button>
+      <button type="button" class="nav-tab" data-view="view-reply">✉️ Reply</button>
+      <button type="button" class="nav-tab" data-view="view-triage">🏷️ Triage</button>
+      <button type="button" class="nav-tab" data-view="view-radar">📊 Radar</button>
+      <button type="button" class="nav-tab" data-view="view-escalation">🚨 Escalation</button>
+      <button type="button" class="nav-tab" data-view="view-handover">📋 Handover</button>
+      <button type="button" class="nav-tab" data-view="view-knowledge">📚 Knowledge</button>
+      <button type="button" class="nav-tab" data-view="view-similar">🔗 Similar</button>
+    </nav>
 
     <!-- Loading Skeleton (Hidden by default) -->
-    <div class="skeleton-container" id="skeleton-container">
+    <div class="skeleton-container" id="skeleton-container" style="display: none;">
       <div class="skeleton-pulse skeleton-line skeleton-title"></div>
       <div class="skeleton-pulse skeleton-line"></div>
       <div class="skeleton-pulse skeleton-line"></div>
       <div class="skeleton-pulse skeleton-line skeleton-short"></div>
     </div>
 
-    <!-- Automated Pre-draft Notification Banner (Hidden by default) -->
-    <div class="pending-draft-banner" id="pending-draft-banner" style="display: none;">
-      <div class="pending-header">
-        <span class="pending-icon">⚡</span>
-        <div>
-          <strong class="pending-title">Pre-Drafted Summary (Pending Review)</strong>
-          <p class="pending-subtitle">Generated on ticket status solve. Review and post below.</p>
+    <!-- VIEW 1: AI Summary & Notes -->
+    <div class="tab-view active" id="view-summary">
+      <section class="controls-card">
+        <div class="format-header">
+          <label class="control-label" for="summary-style-select">Summary Profile</label>
+        </div>
+        <select class="form-select" id="summary-style-select">
+          <option value="standard" selected>Standard Ticket Summary</option>
+          <option value="technical">Technical Troubleshooting</option>
+          <option value="complaint">Customer Complaint & De-escalation</option>
+          <option value="handover">Shift Handover Briefing</option>
+          <option value="escalation">Engineering Escalation</option>
+          <option value="bug">Software Bug Investigation</option>
+          <option value="billing">Billing & Payment Dispute</option>
+          <option value="integration">Integration / Webhook Failure</option>
+          <option value="success">Customer Success Health</option>
+          <option value="management">Executive Management Brief</option>
+          <option value="brief">Brief (1-sentence executive)</option>
+          <option value="action_only">Actions & Commitments Only</option>
+          <option value="detailed">Detailed Full Chronology</option>
+        </select>
+
+        <div class="action-row" style="margin-top: 8px;">
+          <button id="btn-summarize" class="btn btn-primary" type="button">
+            <span class="btn-spinner" id="summarize-spinner" style="display: none;"></span>
+            <span class="btn-icon" id="summarize-icon">⚡</span>
+            <span class="btn-text" id="btn-summarize-text">Generate AI Summary</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Pre-draft Banner -->
+      <div class="pending-draft-banner" id="pending-draft-banner" style="display: none;">
+        <div class="pending-header">
+          <span class="pending-icon">⚡</span>
+          <div>
+            <strong class="pending-title">Automated Solve Pre-Draft</strong>
+            <p class="pending-subtitle">Generated on ticket solve trigger. Ready for review.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Section -->
+      <section class="summary-section" id="summary-section" style="display: none;">
+        <div class="tabs-header">
+          <button type="button" class="tab-btn active" id="tab-btn-markdown" data-tab="markdown">✏️ Edit & Post Note</button>
+          <button type="button" class="tab-btn" id="tab-btn-formatted" data-tab="formatted">📋 Visual Breakdown</button>
+        </div>
+
+        <div class="tab-content active" id="tab-markdown">
+          <div class="editor-header">
+            <span class="editor-label">Internal Note Markdown:</span>
+            <span class="char-count" id="char-count">0 chars</span>
+          </div>
+          <textarea id="markdown-editor" class="markdown-textarea" placeholder="AI Note Markdown... (Edit before posting)"></textarea>
+        </div>
+
+        <div class="tab-content" id="tab-formatted">
+          <div class="summary-box">
+            <div class="summary-row">
+              <div class="summary-metric">
+                <span class="metric-label">Sentiment</span>
+                <span class="sentiment-pill" id="sentiment-pill">⚪ Neutral</span>
+              </div>
+              <div class="summary-metric">
+                <span class="metric-label">Status</span>
+                <span class="status-pill" id="current-status-pill">Open</span>
+              </div>
+            </div>
+            <div class="summary-block">
+              <div class="summary-label">Executive Summary</div>
+              <p class="summary-text" id="summary-exec"></p>
+            </div>
+            <div class="summary-block">
+              <div class="summary-label">Customer Issue</div>
+              <p class="summary-text" id="summary-issue"></p>
+            </div>
+            <div class="summary-block" id="block-actions">
+              <div class="summary-label">Actions Taken / Troubleshooting</div>
+              <ul class="timeline-list" id="timeline-list"></ul>
+            </div>
+            <div class="summary-block" id="block-commitments">
+              <div class="summary-label">Commitments / Promised Follow-ups</div>
+              <ul class="commitments-list" id="commitments-list"></ul>
+            </div>
+            <div class="summary-block" id="block-items">
+              <div class="summary-label">Next Steps / Action Items</div>
+              <ul class="checklist" id="action-checklist"></ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-actions">
+          <button type="button" class="btn btn-secondary" id="btn-copy" title="Copy markdown note to clipboard">
+            <span class="btn-icon">📋</span> Copy
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-insert-composer" title="Inject into Zendesk Ticket Internal Note box">
+            <span class="btn-icon">📝</span> Insert Note
+          </button>
+          <button type="button" class="btn btn-accent" id="btn-post-direct" title="Post directly to Zendesk API as private internal note">
+            <span class="btn-spinner" id="post-spinner" style="display: none;"></span>
+            <span class="btn-icon" id="post-icon">🚀</span>
+            <span id="post-text">Post as Internal Note</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Past Summaries Accordion -->
+      <section class="history-section" id="history-section" style="margin-top: 10px;">
+        <button type="button" class="history-toggle-btn" id="history-toggle-btn">
+          <span class="history-title">
+            <span class="history-icon">📜</span> Past AI Summaries (<span id="history-count">0</span>)
+          </span>
+          <span class="accordion-arrow" id="history-arrow">▾</span>
+        </button>
+        <div class="history-content" id="history-content" style="display: none;">
+          <div class="history-list" id="history-list">
+            <p class="history-empty">No past summaries recorded for this ticket.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- VIEW 2: AI Troubleshooting Assistant -->
+    <div class="tab-view" id="view-troubleshoot" style="display: none;">
+      <div class="controls-card">
+        <p class="section-desc">Analyze conversation evidence and generate structured technical investigation steps.</p>
+        <button id="btn-troubleshoot" class="btn btn-primary" type="button">
+          <span class="btn-icon">🔍</span> Generate Diagnostic Workflow
+        </button>
+      </div>
+      <div id="troubleshoot-results" style="display: none; margin-top: 10px;">
+        <div class="intel-card">
+          <h3 class="intel-title">Diagnostic Investigation Steps</h3>
+          <div id="troubleshoot-steps" class="steps-list"></div>
         </div>
       </div>
     </div>
 
-    <!-- Summary Output Section (Hidden initially) -->
-    <section class="summary-section" id="summary-section" style="display: none;">
-      <!-- Tab Navigation -->
-      <div class="tabs-header">
-        <button type="button" class="tab-btn active" id="tab-btn-markdown" data-tab="markdown">
+    <!-- VIEW 3: AI Reply Drafting -->
+    <div class="tab-view" id="view-reply" style="display: none;">
+      <div class="controls-card">
+        <label class="control-label" for="reply-tone-select">Response Tone</label>
+        <select class="form-select" id="reply-tone-select">
+          <option value="professional" selected>Professional & Reassuring</option>
+          <option value="friendly">Friendly & Conversational</option>
+          <option value="technical">Technical & Precise</option>
+          <option value="empathetic">Empathetic & Attentive</option>
+          <option value="concise">Concise & Direct</option>
+        </select>
+        <div class="action-row" style="margin-top: 8px;">
+          <button id="btn-draft-reply" class="btn btn-primary" type="button">
+            <span class="btn-icon">✉️</span> Draft Customer Reply
+          </button>
+        </div>
+      </div>
+      <div id="reply-draft-results" style="display: none; margin-top: 10px;">
+        <div class="safety-banner">
+          <span>🛡️ Draft for review. Never automatically sent to customer.</span>
+        </div>
+        <div class="editor-container" style="margin-top: 8px;">
+          <textarea id="reply-draft-textarea" class="markdown-textarea" rows="8"></textarea>
+        </div>
+        <div class="summary-actions" style="margin-top: 8px;">
+          <button type="button" class="btn btn-secondary" id="btn-copy-reply">📋 Copy</button>
+          <button type="button" class="btn btn-primary" id="btn-insert-reply">📝 Insert into Public Reply</button>
+        </div>
+      </div>
+    </div>
 
-          ✏️ Edit &amp; Post Note
-        </button>
-        <button type="button" class="tab-btn" id="tab-btn-formatted" data-tab="formatted">
-          📋 Visual Breakdown
+    <!-- VIEW 4: Triage & Classification -->
+    <div class="tab-view" id="view-triage" style="display: none;">
+      <div class="controls-card">
+        <p class="section-desc">Predict category, component, priority, and routing department.</p>
+        <button id="btn-classify" class="btn btn-primary" type="button">
+          <span class="btn-icon">🏷️</span> Classify Ticket
         </button>
       </div>
-
-      <!-- Tab 1: Editable Markdown Note (Default / Primary) -->
-      <div class="tab-content active" id="tab-markdown">
-        <div class="editor-header">
-          <span class="editor-label">Draft Internal Note (Editable):</span>
-          <span class="char-count" id="char-count">0 chars</span>
+      <div id="triage-results" style="display: none; margin-top: 10px;">
+        <div class="intel-card">
+          <div class="triage-grid">
+            <div class="triage-cell">
+              <span class="triage-label">Category</span>
+              <strong id="triage-category">—</strong>
+            </div>
+            <div class="triage-cell">
+              <span class="triage-label">Subcategory</span>
+              <strong id="triage-subcategory">—</strong>
+            </div>
+            <div class="triage-cell">
+              <span class="triage-label">Recommended Priority</span>
+              <span id="triage-priority" class="priority-pill">—</span>
+            </div>
+            <div class="triage-cell">
+              <span class="triage-label">Technical Complexity</span>
+              <strong id="triage-complexity">—</strong>
+            </div>
+            <div class="triage-cell">
+              <span class="triage-label">Target Department</span>
+              <strong id="triage-department">—</strong>
+            </div>
+            <div class="triage-cell">
+              <span class="triage-label">Confidence</span>
+              <strong id="triage-confidence">0%</strong>
+            </div>
+          </div>
+          <p id="triage-rationale" class="triage-rationale-text"></p>
         </div>
+      </div>
+    </div>
+
+    <!-- VIEW 5: Sentiment & Frustration Radar -->
+    <div class="tab-view" id="view-radar" style="display: none;">
+      <div class="controls-card">
+        <p class="section-desc">Evaluate customer frustration level, grievances, and churn risk.</p>
+        <button id="btn-analyze-sentiment" class="btn btn-primary" type="button">
+          <span class="btn-icon">📊</span> Run Sentiment Analysis
+        </button>
+      </div>
+      <div id="radar-results" style="display: none; margin-top: 10px;">
+        <div class="intel-card">
+          <div class="radar-score-box">
+            <div class="radar-item">
+              <span class="radar-label">Overall Sentiment</span>
+              <span id="radar-sentiment" class="sentiment-pill">Neutral</span>
+            </div>
+            <div class="radar-item">
+              <span class="radar-label">Frustration Level</span>
+              <span id="radar-frustration" class="status-pill">Low</span>
+            </div>
+            <div class="radar-item">
+              <span class="radar-label">Churn Risk</span>
+              <span id="radar-churn" class="churn-pill">Low Risk</span>
+            </div>
+          </div>
+          <div class="summary-block" style="margin-top: 10px;">
+            <div class="summary-label">Repeated Unresolved Concerns</div>
+            <ul id="radar-concerns" class="timeline-list"></ul>
+          </div>
+          <p id="radar-explanation" class="summary-text" style="margin-top: 8px;"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 6: Escalation Brief -->
+    <div class="tab-view" id="view-escalation" style="display: none;">
+      <div class="controls-card">
+        <p class="section-desc">Generate engineering escalation brief with full evidence and reproduction facts.</p>
+        <button id="btn-gen-escalation" class="btn btn-primary" type="button">
+          <span class="btn-icon">🚨</span> Generate Escalation Brief
+        </button>
+      </div>
+      <div id="escalation-results" style="display: none; margin-top: 10px;">
         <div class="editor-container">
-          <textarea id="markdown-editor" class="markdown-textarea" placeholder="AI Note Markdown... (Edit before posting)"></textarea>
+          <textarea id="escalation-textarea" class="markdown-textarea" rows="10"></textarea>
+        </div>
+        <div class="summary-actions" style="margin-top: 8px;">
+          <button type="button" class="btn btn-secondary" id="btn-copy-escalation">📋 Copy Brief</button>
         </div>
       </div>
+    </div>
 
-      <!-- Tab 2: Visual Breakdown View -->
-      <div class="tab-content" id="tab-formatted">
-        <div class="summary-box">
-          <div class="summary-row">
-            <div class="summary-metric">
-              <span class="metric-label">Sentiment</span>
-              <span class="sentiment-pill" id="sentiment-pill">⚪ Neutral</span>
-            </div>
-            <div class="summary-metric">
-              <span class="metric-label">Status</span>
-              <span class="status-pill" id="current-status-pill">Open</span>
-            </div>
-          </div>
-
-          <div class="summary-block">
-            <div class="summary-label">Executive Summary</div>
-            <p class="summary-text" id="summary-exec"></p>
-          </div>
-
-          <div class="summary-block">
-            <div class="summary-label">Customer Issue</div>
-            <p class="summary-text" id="summary-issue"></p>
-          </div>
-
-          <div class="summary-block" id="block-actions">
-            <div class="summary-label">Actions Taken / Troubleshooting</div>
-            <ul class="timeline-list" id="timeline-list"></ul>
-          </div>
-
-          <div class="summary-block" id="block-commitments">
-            <div class="summary-label">Commitments / Promised Follow-ups</div>
-            <ul class="commitments-list" id="commitments-list"></ul>
-          </div>
-
-          <div class="summary-block" id="block-items">
-            <div class="summary-label">Next Steps / Action Items</div>
-            <ul class="checklist" id="action-checklist"></ul>
-          </div>
+    <!-- VIEW 7: Shift Handover -->
+    <div class="tab-view" id="view-handover" style="display: none;">
+      <div class="controls-card">
+        <p class="section-desc">Generate shift handover notes with open items and customer commitments.</p>
+        <button id="btn-gen-handover" class="btn btn-primary" type="button">
+          <span class="btn-icon">📋</span> Generate Shift Handover Note
+        </button>
+      </div>
+      <div id="handover-results" style="display: none; margin-top: 10px;">
+        <div class="editor-container">
+          <textarea id="handover-textarea" class="markdown-textarea" rows="10"></textarea>
+        </div>
+        <div class="summary-actions" style="margin-top: 8px;">
+          <button type="button" class="btn btn-secondary" id="btn-copy-handover">📋 Copy Handover Note</button>
+          <button type="button" class="btn btn-accent" id="btn-post-handover">🚀 Post as Internal Handover</button>
         </div>
       </div>
+    </div>
 
-      <!-- Action Footer -->
-      <div class="summary-actions">
-        <button type="button" class="btn btn-secondary" id="btn-copy" title="Copy markdown note to clipboard">
-          <span class="btn-icon">📋</span> Copy
-        </button>
-        <button type="button" class="btn btn-outline" id="btn-insert-composer" title="Inject into Zendesk Ticket Internal Note box">
-          <span class="btn-icon">📝</span> Insert Note
-        </button>
-        <button type="button" class="btn btn-accent" id="btn-post-direct" title="Post directly to Zendesk API as a private internal note">
-          <span class="btn-spinner" id="post-spinner" style="display: none;"></span>
-          <span class="btn-icon" id="post-icon">🚀</span>
-          <span id="post-text">Post as Internal Note</span>
+    <!-- VIEW 8: Knowledge Base -->
+    <div class="tab-view" id="view-knowledge" style="display: none;">
+      <div class="controls-card">
+        <p class="section-desc">Recommended Zendesk Help Center documentation matching this ticket.</p>
+        <button id="btn-fetch-kb" class="btn btn-primary" type="button">
+          <span class="btn-icon">📚</span> Search Knowledge Base
         </button>
       </div>
-    </section>
+      <div id="kb-results" style="display: none; margin-top: 10px;">
+        <div id="kb-article-list" class="kb-list"></div>
+      </div>
+    </div>
 
-    <!-- Past Summaries History Accordion -->
-    <section class="history-section" id="history-section">
-      <button type="button" class="history-toggle-btn" id="history-toggle-btn">
-        <span class="history-title">
-          <span class="history-icon">📜</span> Past AI Summaries (<span id="history-count">0</span>)
-        </span>
-        <span class="accordion-arrow" id="history-arrow">▾</span>
-      </button>
-      <div class="history-content" id="history-content" style="display: none;">
-        <div class="history-list" id="history-list">
-          <p class="history-empty">No past summaries recorded for this ticket.</p>
+    <!-- VIEW 9: Similar Tickets -->
+    <div class="tab-view" id="view-similar" style="display: none;">
+      <div class="controls-card">
+        <p class="section-desc">Discover past resolved tickets with matching symptoms and duplicate queries.</p>
+        <button id="btn-fetch-similar" class="btn btn-primary" type="button">
+          <span class="btn-icon">🔗</span> Find Similar Tickets
+        </button>
+      </div>
+      <div id="similar-results" style="display: none; margin-top: 10px;">
+        <div id="similar-ticket-list" class="similar-list"></div>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal for Write Operations -->
+    <div class="modal-backdrop" id="confirm-modal" style="display: none;">
+      <div class="modal-card">
+        <h3 class="modal-title" id="modal-title">Confirm Zendesk Note Publication</h3>
+        <p class="modal-desc" id="modal-desc">Are you sure you want to post this internal note to Zendesk?</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btn-modal-cancel">Cancel</button>
+          <button type="button" class="btn btn-accent" id="btn-modal-confirm">Confirm &amp; Post</button>
         </div>
       </div>
-    </section>
+    </div>
 
     <!-- Toast Notification Banner -->
     <div class="toast" id="toast">

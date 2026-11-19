@@ -53,3 +53,12 @@ coverage.xml
 # ZAF package artifacts
 *.zip
 tmp/
+
+# SQLite & Persistent Local Data
+data/
+*.db
+*.sqlite3
+
+# Allow project docs
+!docs/
+!docs/**

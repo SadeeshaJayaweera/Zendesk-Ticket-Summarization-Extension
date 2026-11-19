@@ -1,15 +1,58 @@
 version: "3.8"
 
 services:
+  # 1. PostgreSQL 16 - Relational Primary Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: zendesk-intelligence-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-zendesk_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zendesk_secure_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-zendesk_intelligence}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zendesk_app} -d ${POSTGRES_DB:-zendesk_intelligence}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis 7 - Cache & Celery Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: zendesk-intelligence-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 3. FastAPI REST API Gateway & Application Backend
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: zendesk-ticket-summarizer-backend
+    container_name: zendesk-intelligence-backend
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-zendesk_app}:${POSTGRES_PASSWORD:-zendesk_secure_pass_2026}@postgres:5432/${POSTGRES_DB:-zendesk_intelligence}
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-insecure_dev_jwt_secret_change_in_production}
       - ZENDESK_SUBDOMAIN=${ZENDESK_SUBDOMAIN}
       - ZENDESK_EMAIL=${ZENDESK_EMAIL}
       - ZENDESK_API_TOKEN=${ZENDESK_API_TOKEN}
@@ -17,22 +60,53 @@ services:
       - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-3-5-haiku-20241022}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
-      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
-      - SQLITE_DB_PATH=/app/data/audit.db
-      - BACKEND_HOST=0.0.0.0
-      - BACKEND_PORT=8000
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-120}
       - LOG_LEVEL=INFO
     volumes:
-      - summarizer_data:/app/data
+      - platform_data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
+
+  # 4. Celery Asynchronous Background Worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zendesk-intelligence-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["sh", "-c", "cd backend && celery -A app.worker.celery_app worker --loglevel=info --concurrency=4"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-zendesk_app}:${POSTGRES_PASSWORD:-zendesk_secure_pass_2026}@postgres:5432/${POSTGRES_DB:-zendesk_intelligence}
+      - REDIS_URL=redis://redis:6379/0
+      - ZENDESK_SUBDOMAIN=${ZENDESK_SUBDOMAIN}
+      - ZENDESK_EMAIL=${ZENDESK_EMAIL}
+      - ZENDESK_API_TOKEN=${ZENDESK_API_TOKEN}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - platform_data:/app/data
 
 volumes:
-  summarizer_data:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  platform_data:
     driver: local

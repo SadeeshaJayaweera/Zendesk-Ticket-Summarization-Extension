@@ -1,4 +1,4 @@
-"""Configuration settings for Zendesk Ticket Summarizer.
+"""Configuration settings for Zendesk Ticket Summarizer & Support Intelligence Platform.
 
 Loads environment variables and .env configuration cleanly using Pydantic Settings.
 Never hardcodes credentials or secrets.
@@ -63,8 +63,7 @@ class Settings(BaseSettings):
         description="Zendesk Webhook Signing Secret for HMAC-SHA256 signature verification",
     )
 
-
-    # Gemini AI Settings
+    # Google Gemini AI Settings
     gemini_api_key: SecretStr = Field(
         default=SecretStr(""),
         alias="GEMINI_API_KEY",
@@ -76,7 +75,7 @@ class Settings(BaseSettings):
         description="Gemini model version for ticket summarization",
     )
 
-    # Groq AI Settings (Alternative provider for fallback/rate limit avoidance)
+    # Groq AI Settings
     groq_api_key: SecretStr = Field(
         default=SecretStr(""),
         alias="GROQ_API_KEY",
@@ -85,23 +84,94 @@ class Settings(BaseSettings):
     groq_model: str = Field(
         default="llama-3.3-70b-versatile",
         alias="GROQ_MODEL",
-        description="Groq model version (e.g. llama-3.3-70b-versatile, llama3-70b-8192)",
+        description="Groq model version",
     )
 
-    # LLM Provider Selection: 'gemini' (default) or 'groq'
+    # OpenAI AI Settings
+    openai_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        alias="OPENAI_API_KEY",
+        description="OpenAI API Key",
+    )
+    openai_model: str = Field(
+        default="gpt-4o-mini",
+        alias="OPENAI_MODEL",
+        description="OpenAI model identifier",
+    )
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        alias="OPENAI_BASE_URL",
+        description="OpenAI API Base URL (configurable for custom OpenAI-compatible providers)",
+    )
+
+    # Anthropic Claude AI Settings
+    anthropic_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        alias="ANTHROPIC_API_KEY",
+        description="Anthropic API Key",
+    )
+    anthropic_model: str = Field(
+        default="claude-3-5-haiku-20241022",
+        alias="ANTHROPIC_MODEL",
+        description="Anthropic Claude model identifier",
+    )
+
+    # Primary LLM Provider: 'gemini', 'groq', 'openai', 'anthropic'
     llm_provider: str = Field(
         default="gemini",
         alias="LLM_PROVIDER",
-        description="AI provider to use for summarization: 'gemini' or 'groq'",
+        description="Primary AI provider to use for summarization",
+    )
+
+    # Database Settings
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///data/app.db",
+        alias="DATABASE_URL",
+        description="Async database connection string (PostgreSQL in production, SQLite for dev/test)",
+    )
+
+    # Redis Cache & Queue
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        alias="REDIS_URL",
+        description="Redis connection URL for distributed rate limiting and caching",
+    )
+
+    # Security & JWT Authentication
+    jwt_secret_key: SecretStr = Field(
+        default=SecretStr("dev-insecure-jwt-secret-key-change-in-production-32chars"),
+        alias="JWT_SECRET_KEY",
+        description="Signing secret for JWT bearer tokens",
+    )
+    jwt_algorithm: str = Field(
+        default="HS256",
+        alias="JWT_ALGORITHM",
+    )
+    jwt_expiration_minutes: int = Field(
+        default=1440,
+        alias="JWT_EXPIRATION_MINUTES",
+        description="JWT token validity duration in minutes (default: 24 hours)",
     )
 
     # Server / Runtime Settings
     backend_host: str = Field(default="0.0.0.0", alias="BACKEND_HOST")
     backend_port: int = Field(default=8000, alias="BACKEND_PORT")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
-    rate_limit_per_minute: int = Field(default=60, alias="RATE_LIMIT_PER_MINUTE", description="Rate limit per client per minute")
-    sqlite_db_path: str = Field(default="data/audit.db", alias="SQLITE_DB_PATH", description="Path to SQLite audit DB")
-
+    rate_limit_per_minute: int = Field(
+        default=60,
+        alias="RATE_LIMIT_PER_MINUTE",
+        description="Rate limit per client per minute",
+    )
+    sqlite_db_path: str = Field(
+        default="data/audit.db",
+        alias="SQLITE_DB_PATH",
+        description="Path to SQLite audit DB for fallback logging",
+    )
+    enable_pii_redaction: bool = Field(
+        default=True,
+        alias="ENABLE_PII_REDACTION",
+        description="Whether to redact customer PII before sending to external AI providers",
+    )
 
     @property
     def zendesk_base_url(self) -> str:
@@ -143,14 +213,22 @@ class Settings(BaseSettings):
         return bool(self.groq_api_key.get_secret_value().strip())
 
     @property
+    def is_openai_configured(self) -> bool:
+        """Check if OpenAI API key is provided."""
+        return bool(self.openai_api_key.get_secret_value().strip())
+
+    @property
+    def is_anthropic_configured(self) -> bool:
+        """Check if Anthropic API key is provided."""
+        return bool(self.anthropic_api_key.get_secret_value().strip())
+
+    @property
     def is_webhook_secret_configured(self) -> bool:
         """Check if Zendesk webhook signing secret is configured."""
         return bool(self.zendesk_webhook_secret.get_secret_value().strip())
-
 
 
 @lru_cache()
 def get_settings() -> Settings:
     """Retrieve cached instance of application settings."""
     return Settings()
-

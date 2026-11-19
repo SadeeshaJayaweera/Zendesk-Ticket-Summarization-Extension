@@ -399,4 +399,42 @@ class ZendeskClient:
             tickets_data = data.get("tickets", [])
         return [Ticket.model_validate(t) for t in tickets_data]
 
+    async def search_tickets(self, query: str, limit: int = 10) -> List[Ticket]:
+        """Search Zendesk tickets using Zendesk Search API syntax."""
+        data = await self._request(
+            "GET",
+            "/api/v2/search.json",
+            params={"query": f"type:ticket {query}", "per_page": min(limit, 50)},
+        )
+        results = data.get("results", [])
+        return [Ticket.model_validate(t) for t in results if isinstance(t, dict) and "id" in t]
+
+    async def search_help_center(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """Search Zendesk Help Center articles."""
+        try:
+            data = await self._request(
+                "GET",
+                "/api/v2/help_center/articles/search.json",
+                params={"query": query, "per_page": min(limit, 25)},
+            )
+            return data.get("results", [])
+        except Exception:
+            return []
+
+    async def get_ticket_audits(self, ticket_id: int) -> List[Dict[str, Any]]:
+        """Retrieve full audit history events for a ticket."""
+        data = await self._request("GET", f"/api/v2/tickets/{ticket_id}/audits.json")
+        return data.get("audits", [])
+
+    async def get_ticket_fields(self) -> List[Dict[str, Any]]:
+        """Fetch custom and system ticket fields definition."""
+        data = await self._request("GET", "/api/v2/ticket_fields.json")
+        return data.get("ticket_fields", [])
+
+    async def get_organization(self, org_id: int) -> Dict[str, Any]:
+        """Fetch Zendesk Organization profile by ID."""
+        data = await self._request("GET", f"/api/v2/organizations/{org_id}.json")
+        return data.get("organization", {})
+
+
 
