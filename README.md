@@ -16,6 +16,41 @@ An enterprise-grade, production-ready **AI Support Intelligence Platform** that 
 
 ---
 
+## 📸 Application Previews & Screenshots
+
+### 1. AI Ticket Summarization & Diagnostic Troubleshooting
+| AI Summary & Visual Breakdown | Diagnostic Troubleshooting Workflow |
+| :---: | :---: |
+| <img src="docs/screenshots/01-ai-ticket-summary.png" width="380" alt="AI Ticket Summary Preview" /> | <img src="docs/screenshots/02-ai-troubleshooting.png" width="380" alt="AI Troubleshooting Preview" /> |
+| *Structured Executive Summary, Commitments & Action Items* | *Diagnostic Procedures, Expected Results & Escalation Thresholds* |
+
+### 2. Context-Grounded Reply Drafting & Ticket Triage
+| AI Customer Reply Drafting | Ticket Classification & Triage |
+| :---: | :---: |
+| <img src="docs/screenshots/03-ai-reply-drafting.png" width="380" alt="AI Reply Drafting Preview" /> | <img src="docs/screenshots/04-ticket-classification-triage.png" width="380" alt="Ticket Classification Preview" /> |
+| *Multi-tone draft generation with human review safeguards* | *Category, component, complexity, and priority recommendations* |
+
+### 3. Customer Sentiment Radar & Escalation Intelligence
+| Customer Sentiment & Frustration Radar | Engineering Escalation Brief |
+| :---: | :---: |
+| <img src="docs/screenshots/05-sentiment-frustration-radar.png" width="380" alt="Sentiment Radar Preview" /> | <img src="docs/screenshots/06-engineering-escalation.png" width="380" alt="Engineering Escalation Preview" /> |
+| *Frustration level, repeated grievances, and churn risk detection* | *Technical evidence, repro details, and requested engineering actions* |
+
+### 4. Shift Handover Intelligence & Knowledge Discovery
+| Shift Handover Briefing Note | Help Center Knowledge Base Search |
+| :---: | :---: |
+| <img src="docs/screenshots/07-shift-handover.png" width="380" alt="Shift Handover Preview" /> | <img src="docs/screenshots/08-knowledge-base-recommendations.png" width="380" alt="Knowledge Base Recommendations Preview" /> |
+| *Status tracking, unresolved blockers, and next-agent obligations* | *Connected Help Center article search & relevance explanations* |
+
+### 5. Historical Similar & Duplicate Ticket Discovery
+<p align="center">
+  <img src="docs/screenshots/09-similar-ticket-discovery.png" width="480" alt="Similar & Duplicate Ticket Discovery Preview" />
+  <br />
+  <em>Historical resolved tickets matching symptoms, similarity confidence scores & duplicate detection</em>
+</p>
+
+---
+
 ## 📌 Platform Capabilities & Feature Matrix
 
 ### 1. Advanced Ticket Summarization Engine (10 Profiles)
@@ -173,22 +208,22 @@ The validated package `dist/zendesk-ticket-summarizer.zip` is ready for direct u
 
 ## 📚 Complete Documentation Suite
 
-Detailed guides are available in the [`docs/`](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs) directory:
+Detailed guides are available in the [`docs/`](docs) directory:
 
-1. [System Architecture](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/SYSTEM_ARCHITECTURE.md)
-2. [Database Schema & ER Diagrams](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/DATABASE_SCHEMA.md)
-3. [REST API Documentation](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/API_DOCUMENTATION.md)
-4. [Security & DevSecOps](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/SECURITY.md)
-5. [Privacy & Data Retention](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/PRIVACY_AND_DATA_RETENTION.md)
-6. [Local Development Setup](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/DEVELOPMENT_SETUP.md)
-7. [Environment Variables Dictionary](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/ENVIRONMENT_VARIABLES.md)
-8. [Zendesk Installation & Webhooks](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/ZENDESK_INSTALLATION.md)
-9. [AI Provider Setup & Fallback Chains](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/AI_PROVIDER_SETUP.md)
-10. [Model Context Protocol (MCP) Setup](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/MCP_SETUP.md)
-11. [Production Deployment Guide](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/DEPLOYMENT.md)
-12. [Testing & Verification Guide](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/TESTING_GUIDE.md)
-13. [Troubleshooting & Operational Runbook](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/TROUBLESHOOTING.md)
-14. [Changelog](file:///Users/macboookpro/Zendesk-Ticket-Summarization-Extension/docs/CHANGELOG.md)
+1. [System Architecture](docs/SYSTEM_ARCHITECTURE.md)
+2. [Database Schema & ER Diagrams](docs/DATABASE_SCHEMA.md)
+3. [REST API Documentation](docs/API_DOCUMENTATION.md)
+4. [Security & DevSecOps](docs/SECURITY.md)
+5. [Privacy & Data Retention](docs/PRIVACY_AND_DATA_RETENTION.md)
+6. [Local Development Setup](docs/DEVELOPMENT_SETUP.md)
+7. [Environment Variables Dictionary](docs/ENVIRONMENT_VARIABLES.md)
+8. [Zendesk Installation & Webhooks](docs/ZENDESK_INSTALLATION.md)
+9. [AI Provider Setup & Fallback Chains](docs/AI_PROVIDER_SETUP.md)
+10. [Model Context Protocol (MCP) Setup](docs/MCP_SETUP.md)
+11. [Production Deployment Guide](docs/DEPLOYMENT.md)
+12. [Testing & Verification Guide](docs/TESTING_GUIDE.md)
+13. [Troubleshooting & Operational Runbook](docs/TROUBLESHOOTING.md)
+14. [Changelog](docs/CHANGELOG.md)
 
 ---
 

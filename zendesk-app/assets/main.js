@@ -215,6 +215,44 @@ document.addEventListener('DOMContentLoaded', () => {
     checkBackendHealth();
     loadTicketHistory();
     checkPendingDraft();
+
+    // Auto-tab & preview support for query params (e.g. ?tab=triage&action=1)
+    setTimeout(() => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetTab = urlParams.get('tab');
+        const autoAction = urlParams.get('action');
+        if (targetTab) {
+          const tabEl = document.querySelector(`.nav-tab[data-view="view-${targetTab}"]`);
+          if (tabEl) tabEl.click();
+        }
+        if (autoAction === '1' || autoAction === 'true') {
+          if (!targetTab || targetTab === 'summary') {
+            renderSummary(generateMockSummary());
+            const subView = urlParams.get('sub');
+            if (subView === 'formatted') {
+              tabBtnFormatted?.click();
+            }
+          } else if (targetTab === 'troubleshoot') {
+            renderMockTroubleshoot();
+          } else if (targetTab === 'reply') {
+            btnDraftReply?.click();
+          } else if (targetTab === 'triage') {
+            btnClassify?.click();
+          } else if (targetTab === 'radar') {
+            btnAnalyzeSentiment?.click();
+          } else if (targetTab === 'escalation') {
+            btnGenEscalation?.click();
+          } else if (targetTab === 'handover') {
+            btnGenHandover?.click();
+          } else if (targetTab === 'knowledge') {
+            btnFetchKb?.click();
+          } else if (targetTab === 'similar') {
+            btnFetchSimilar?.click();
+          }
+        }
+      } catch (_) {}
+    }, 50);
   }
 
   function updateTicketCardUI(data) {
